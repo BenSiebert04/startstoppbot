@@ -456,5 +456,3 @@ curl http://localhost:8080/api/applications | jq '.'
 - [Spring Boot Reference](https://docs.spring.io/spring-boot/docs/current/reference/html/)
 
 ---
-
-**Entwickelt mit ❤️ für die Gaming-Community**
