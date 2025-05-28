@@ -52,11 +52,11 @@ public class ApplicationController {
         try {
             boolean existed = applicationService.applicationExists(request.getName());
             Application application = applicationService.createOrUpdateApplication(
-                    request.getName(), 
-                    request.getContainerId(), 
+                    request.getName(),
+                    request.getContainerId(),
                     request.getCurrentPlayers()
             );
-            
+
             if (existed) {
                 return ResponseEntity.ok(application);
             } else {
@@ -82,6 +82,25 @@ public class ApplicationController {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/{name}")
+    @Operation(summary = "Anwendung löschen", description = "Entfernt eine Anwendung aus der Datenbank und stoppt optional den Container")
+    @ApiResponse(responseCode = "200", description = "Anwendung erfolgreich gelöscht")
+    @ApiResponse(responseCode = "404", description = "Anwendung nicht gefunden")
+    @ApiResponse(responseCode = "500", description = "Fehler beim Löschen der Anwendung")
+    public ResponseEntity<String> deleteApplication(
+            @Parameter(description = "Name der Anwendung") @PathVariable String name) {
+        try {
+            if (applicationService.deleteApplication(name)) {
+                return ResponseEntity.ok("Anwendung '" + name + "' erfolgreich gelöscht");
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Fehler beim Löschen der Anwendung '" + name + "': " + e.getMessage());
         }
     }
 

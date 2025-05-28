@@ -17,6 +17,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.Collections;
+
 @SpringBootApplication
 @EnableScheduling
 @OpenAPIDefinition(
@@ -41,7 +43,7 @@ public class StartStoppBotApplication implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         JDA jda = JDABuilder.createDefault(botToken)
-                .enableIntents(GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
+                .enableIntents(Collections.emptyList())
                 .addEventListeners(slashCommands)
                 .build();
 

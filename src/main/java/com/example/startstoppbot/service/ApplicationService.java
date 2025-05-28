@@ -28,7 +28,7 @@ public class ApplicationService {
 
     public Application createOrUpdateApplication(String name, String containerId, Integer currentPlayers) {
         Optional<Application> existingApp = applicationRepository.findByName(name);
-        
+
         if (existingApp.isPresent()) {
             Application app = existingApp.get();
             app.setCurrentPlayers(currentPlayers);
@@ -45,7 +45,7 @@ public class ApplicationService {
 
     public Application updatePlayerCount(String name, Integer currentPlayers) {
         Optional<Application> existingApp = applicationRepository.findByName(name);
-        
+
         if (existingApp.isPresent()) {
             Application app = existingApp.get();
             app.setCurrentPlayers(currentPlayers);
@@ -54,6 +54,28 @@ public class ApplicationService {
         } else {
             throw new RuntimeException("Anwendung '" + name + "' nicht gefunden");
         }
+    }
+
+    public boolean deleteApplication(String name) {
+        Optional<Application> existingApp = applicationRepository.findByName(name);
+
+        if (existingApp.isPresent()) {
+            Application app = existingApp.get();
+
+            // Optional: Container vorher stoppen, falls er läuft
+            if (app.getIsOnline()) {
+                try {
+                    portainerService.stopContainer(app.getContainerId());
+                } catch (Exception e) {
+                    // Log the error but continue with deletion
+                    System.err.println("Warnung: Container konnte nicht gestoppt werden: " + e.getMessage());
+                }
+            }
+
+            applicationRepository.delete(app);
+            return true;
+        }
+        return false;
     }
 
     public List<Application> getOfflineApplications() {
