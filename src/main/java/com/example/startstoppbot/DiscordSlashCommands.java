@@ -1,25 +1,23 @@
 package com.example.startstoppbot;
 
-import com.example.startstoppbot.model.Application;
-import com.example.startstoppbot.service.ApplicationService;
+import com.example.startstoppbot.model.ContainerInfo;
+import com.example.startstoppbot.service.PortainerService;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.awt.*;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 public class DiscordSlashCommands extends ListenerAdapter {
 
     @Autowired
-    private ApplicationService applicationService;
+    private PortainerService portainerService;
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
@@ -42,145 +40,192 @@ public class DiscordSlashCommands extends ListenerAdapter {
     private void handleGetServerStatusList(SlashCommandInteractionEvent event) {
         event.deferReply().queue();
 
-        List<Application> applications = applicationService.getAllApplications();
+        try {
+            List<ContainerInfo> containers = portainerService.getDiscordEnabledContainers();
 
-        if (applications.isEmpty()) {
-            event.getHook().editOriginal("❌ Keine Server registriert.").queue();
-            return;
+            if (containers.isEmpty()) {
+                event.getHook().editOriginal("Keine Container für Discord freigegeben.").queue();
+                return;
+            }
+
+            EmbedBuilder embedBuilder = new EmbedBuilder()
+                    .setTitle("🖥️ Server Status Liste")
+                    .setColor(Color.BLUE)
+                    .setDescription("Alle für Discord freigegebene Container:");
+
+            StringBuilder statusList = new StringBuilder();
+            for (ContainerInfo container : containers) {
+                String statusEmoji = getStatusEmoji(container.getStatus());
+                String playerInfo = "";
+
+                if (container.getCurrentPlayers() != null) {
+                    playerInfo = String.format(" | 👥 %d", container.getCurrentPlayers());
+                    if (container.getMaxPlayers() != null) {
+                        playerInfo += "/" + container.getMaxPlayers();
+                    }
+                }
+
+                statusList.append(String.format("%s **%s** - %s%s\n",
+                        statusEmoji, container.getName(), container.getStatus(), playerInfo));
+            }
+
+            embedBuilder.addField("Container", statusList.toString(), false);
+            event.getHook().editOriginalEmbeds(embedBuilder.build()).queue();
+
+        } catch (Exception e) {
+            event.getHook().editOriginal("❌ Fehler beim Abrufen der Container-Liste: " + e.getMessage()).queue();
         }
-
-        EmbedBuilder embed = new EmbedBuilder();
-        embed.setTitle("🖥️ Server Status Liste");
-        embed.setColor(Color.BLUE);
-
-        StringBuilder statusList = new StringBuilder();
-        for (Application app : applications) {
-            String status = app.getIsOnline() ? "🟢 Online" : "🔴 Offline";
-            String players = app.getIsOnline() ? String.valueOf(app.getCurrentPlayers()) : "0";
-            String lastUpdate = app.getLastUpdate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
-            
-            statusList.append("**").append(app.getName()).append("**\n");
-            statusList.append("Status: ").append(status).append("\n");
-            statusList.append("Spieler: ").append(players).append("\n");
-            statusList.append("Letzte Aktualisierung: ").append(lastUpdate).append("\n\n");
-        }
-
-        embed.setDescription(statusList.toString());
-        embed.setFooter("Aktualisiert: " + java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")));
-
-        event.getHook().editOriginalEmbeds(embed.build()).queue();
     }
 
     private void handleGetServerStatus(SlashCommandInteractionEvent event) {
         event.deferReply().queue();
 
-        String serverName = event.getOption("name").getAsString();
-        Optional<Application> appOpt = applicationService.getApplicationByName(serverName);
-
-        if (appOpt.isEmpty()) {
-            event.getHook().editOriginal("❌ Server '" + serverName + "' nicht gefunden.").queue();
+        OptionMapping containerOption = event.getOption("container");
+        if (containerOption == null) {
+            event.getHook().editOriginal("❌ Container-Name ist erforderlich.").queue();
             return;
         }
 
-        Application app = appOpt.get();
-        
-        EmbedBuilder embed = new EmbedBuilder();
-        embed.setTitle("🖥️ Server Status: " + app.getName());
-        
-        if (app.getIsOnline()) {
-            embed.setColor(Color.GREEN);
-            embed.addField("Status", "🟢 Online", true);
-            embed.addField("Spieler", String.valueOf(app.getCurrentPlayers()), true);
-        } else {
-            embed.setColor(Color.RED);
-            embed.addField("Status", "🔴 Offline", true);
-            embed.addField("Spieler", "0", true);
+        String containerName = containerOption.getAsString();
+
+        try {
+            List<ContainerInfo> containers = portainerService.getDiscordEnabledContainers();
+            ContainerInfo container = containers.stream()
+                    .filter(c -> c.getName().equalsIgnoreCase(containerName))
+                    .findFirst()
+                    .orElse(null);
+
+            if (container == null) {
+                event.getHook().editOriginal("❌ Container '" + containerName + "' nicht gefunden oder nicht für Discord freigegeben.").queue();
+                return;
+            }
+
+            String statusEmoji = getStatusEmoji(container.getStatus());
+            Color embedColor = getStatusColor(container.getStatus());
+
+            EmbedBuilder embedBuilder = new EmbedBuilder()
+                    .setTitle("🖥️ Server Status: " + container.getName())
+                    .setColor(embedColor)
+                    .addField("Status", statusEmoji + " " + container.getStatus(), true)
+                    .addField("Container ID", container.getContainerId(), true)
+                    .addField("Endpoint ID", container.getEndpointId().toString(), true);
+
+            if (container.getCurrentPlayers() != null) {
+                String playerInfo = container.getCurrentPlayers().toString();
+                if (container.getMaxPlayers() != null) {
+                    playerInfo += " / " + container.getMaxPlayers();
+                }
+                embedBuilder.addField("👥 Spieler", playerInfo, true);
+            }
+
+            if (container.getLastPlayerUpdate() != null) {
+                String lastUpdate = container.getLastPlayerUpdate()
+                        .format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"));
+                embedBuilder.addField("🕐 Letzte Aktualisierung", lastUpdate, false);
+            }
+
+            event.getHook().editOriginalEmbeds(embedBuilder.build()).queue();
+
+        } catch (Exception e) {
+            event.getHook().editOriginal("❌ Fehler beim Abrufen des Container-Status: " + e.getMessage()).queue();
         }
-        
-        embed.addField("Container ID", app.getContainerId(), false);
-        embed.addField("Letzte Aktualisierung", 
-                app.getLastUpdate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")), false);
-        
-        event.getHook().editOriginalEmbeds(embed.build()).queue();
     }
 
     private void handleStartServer(SlashCommandInteractionEvent event) {
         event.deferReply().queue();
 
-        String serverName = event.getOption("name").getAsString();
-        
-        if (!applicationService.applicationExists(serverName)) {
-            event.getHook().editOriginal("❌ Server '" + serverName + "' nicht gefunden.").queue();
+        OptionMapping containerOption = event.getOption("container");
+        if (containerOption == null) {
+            event.getHook().editOriginal("❌ Container-Name ist erforderlich.").queue();
             return;
         }
 
-        Optional<Application> appOpt = applicationService.getApplicationByName(serverName);
-        if (appOpt.isPresent() && appOpt.get().getIsOnline()) {
-            event.getHook().editOriginal("⚠️ Server '" + serverName + "' läuft bereits.").queue();
-            return;
-        }
+        String containerName = containerOption.getAsString();
 
-        event.getHook().editOriginal("🔄 Starte Server '" + serverName + "'...").queue();
+        try {
+            portainerService.starteContainerFuerDiscord(containerName);
 
-        if (applicationService.startServer(serverName)) {
-            EmbedBuilder embed = new EmbedBuilder();
-            embed.setTitle("✅ Server gestartet");
-            embed.setDescription("Server '" + serverName + "' wurde erfolgreich gestartet!");
-            embed.setColor(Color.GREEN);
-            embed.setTimestamp(java.time.Instant.now());
-            
-            event.getHook().editOriginalEmbeds(embed.build()).queue();
-        } else {
-            EmbedBuilder embed = new EmbedBuilder();
-            embed.setTitle("❌ Fehler beim Starten");
-            embed.setDescription("Server '" + serverName + "' konnte nicht gestartet werden.");
-            embed.setColor(Color.RED);
-            embed.setTimestamp(java.time.Instant.now());
-            
-            event.getHook().editOriginalEmbeds(embed.build()).queue();
+            EmbedBuilder embedBuilder = new EmbedBuilder()
+                    .setTitle("✅ Server gestartet")
+                    .setColor(Color.GREEN)
+                    .setDescription("Container **" + containerName + "** wird gestartet...")
+                    .addField("ℹ️ Hinweis", "Es kann einige Sekunden dauern, bis der Server vollständig hochgefahren ist.", false);
+
+            event.getHook().editOriginalEmbeds(embedBuilder.build()).queue();
+
+        } catch (Exception e) {
+            EmbedBuilder embedBuilder = new EmbedBuilder()
+                    .setTitle("❌ Fehler beim Starten")
+                    .setColor(Color.RED)
+                    .setDescription("Container **" + containerName + "** konnte nicht gestartet werden.")
+                    .addField("Fehlergrund", e.getMessage(), false);
+
+            event.getHook().editOriginalEmbeds(embedBuilder.build()).queue();
         }
     }
 
     private void handleStopServer(SlashCommandInteractionEvent event) {
         event.deferReply().queue();
 
-        // Admin-Berechtigung prüfen
-        if (!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-            event.getHook().editOriginal("❌ Du benötigst Administrator-Berechtigung für diesen Befehl.").queue();
+        OptionMapping containerOption = event.getOption("container");
+        if (containerOption == null) {
+            event.getHook().editOriginal("❌ Container-Name ist erforderlich.").queue();
             return;
         }
 
-        String serverName = event.getOption("name").getAsString();
-        
-        if (!applicationService.applicationExists(serverName)) {
-            event.getHook().editOriginal("❌ Server '" + serverName + "' nicht gefunden.").queue();
-            return;
+        String containerName = containerOption.getAsString();
+
+        try {
+            portainerService.stoppeContainerFuerDiscord(containerName);
+
+            EmbedBuilder embedBuilder = new EmbedBuilder()
+                    .setTitle("🛑 Server gestoppt")
+                    .setColor(Color.ORANGE)
+                    .setDescription("Container **" + containerName + "** wird gestoppt...")
+                    .addField("ℹ️ Hinweis", "Es kann einige Sekunden dauern, bis der Server vollständig heruntergefahren ist.", false);
+
+            event.getHook().editOriginalEmbeds(embedBuilder.build()).queue();
+
+        } catch (Exception e) {
+            EmbedBuilder embedBuilder = new EmbedBuilder()
+                    .setTitle("❌ Fehler beim Stoppen")
+                    .setColor(Color.RED)
+                    .setDescription("Container **" + containerName + "** konnte nicht gestoppt werden.")
+                    .addField("Fehlergrund", e.getMessage(), false);
+
+            event.getHook().editOriginalEmbeds(embedBuilder.build()).queue();
         }
+    }
 
-        Optional<Application> appOpt = applicationService.getApplicationByName(serverName);
-        if (appOpt.isPresent() && !appOpt.get().getIsOnline()) {
-            event.getHook().editOriginal("⚠️ Server '" + serverName + "' ist bereits offline.").queue();
-            return;
+    private String getStatusEmoji(String status) {
+        switch (status.toLowerCase()) {
+            case "running":
+                return "🟢";
+            case "exited":
+            case "stopped":
+                return "🔴";
+            case "paused":
+                return "🟡";
+            case "restarting":
+                return "🔄";
+            default:
+                return "⚪";
         }
+    }
 
-        event.getHook().editOriginal("🔄 Stoppe Server '" + serverName + "'...").queue();
-
-        if (applicationService.stopServer(serverName)) {
-            EmbedBuilder embed = new EmbedBuilder();
-            embed.setTitle("✅ Server gestoppt");
-            embed.setDescription("Server '" + serverName + "' wurde erfolgreich gestoppt!");
-            embed.setColor(Color.ORANGE);
-            embed.setTimestamp(java.time.Instant.now());
-            
-            event.getHook().editOriginalEmbeds(embed.build()).queue();
-        } else {
-            EmbedBuilder embed = new EmbedBuilder();
-            embed.setTitle("❌ Fehler beim Stoppen");
-            embed.setDescription("Server '" + serverName + "' konnte nicht gestoppt werden.");
-            embed.setColor(Color.RED);
-            embed.setTimestamp(java.time.Instant.now());
-            
-            event.getHook().editOriginalEmbeds(embed.build()).queue();
+    private Color getStatusColor(String status) {
+        switch (status.toLowerCase()) {
+            case "running":
+                return Color.GREEN;
+            case "exited":
+            case "stopped":
+                return Color.RED;
+            case "paused":
+                return Color.ORANGE;
+            case "restarting":
+                return Color.YELLOW;
+            default:
+                return Color.GRAY;
         }
     }
 }
