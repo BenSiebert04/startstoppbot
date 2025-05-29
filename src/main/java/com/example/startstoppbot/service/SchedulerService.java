@@ -40,10 +40,9 @@ public class SchedulerService {
 
         try {
             LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(inactivityMinutes);
-            List<ContainerInfo> runningContainers = containerInfoRepository.findAll()
+            List<ContainerInfo> runningContainers = containerInfoRepository.findByDiscordEnabledTrue()
                     .stream()
                     .filter(container -> "running".equalsIgnoreCase(container.getStatus()))
-                    .filter(ContainerInfo::getDiscordEnabled) // Nur Discord-enabled Container
                     .toList();
 
             for (ContainerInfo container : runningContainers) {

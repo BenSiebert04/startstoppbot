@@ -80,7 +80,7 @@ public class DiscordSlashCommands extends ListenerAdapter {
     private void handleGetServerStatus(SlashCommandInteractionEvent event) {
         event.deferReply().queue();
 
-        OptionMapping containerOption = event.getOption("container");
+        OptionMapping containerOption = event.getOption("name");
         if (containerOption == null) {
             event.getHook().editOriginal("❌ Container-Name ist erforderlich.").queue();
             return;
@@ -134,7 +134,7 @@ public class DiscordSlashCommands extends ListenerAdapter {
     private void handleStartServer(SlashCommandInteractionEvent event) {
         event.deferReply().queue();
 
-        OptionMapping containerOption = event.getOption("container");
+        OptionMapping containerOption = event.getOption("name");
         if (containerOption == null) {
             event.getHook().editOriginal("❌ Container-Name ist erforderlich.").queue();
             return;
@@ -167,7 +167,7 @@ public class DiscordSlashCommands extends ListenerAdapter {
     private void handleStopServer(SlashCommandInteractionEvent event) {
         event.deferReply().queue();
 
-        OptionMapping containerOption = event.getOption("container");
+        OptionMapping containerOption = event.getOption("name");
         if (containerOption == null) {
             event.getHook().editOriginal("❌ Container-Name ist erforderlich.").queue();
             return;
