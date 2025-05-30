@@ -14,7 +14,7 @@ import java.util.List;
 public class SchedulerService {
 
     @Autowired
-    private PortainerService portainerService;
+    private DockerService dockerService;
 
     @Autowired
     private ContainerInfoRepository containerInfoRepository;
@@ -70,7 +70,7 @@ public class SchedulerService {
                 if (shouldStop) {
                     try {
                         System.out.println("Auto-Stopp für Container: " + container.getName() + " - Grund: " + reason);
-                        portainerService.stoppeContainer(container.getName());
+                        dockerService.stoppeContainer(container.getName());
 
                         // Optional: Spielerzahl auf 0 setzen nach dem Stoppen
                         containerInfoRepository.updatePlayerCountByName(
@@ -94,7 +94,7 @@ public class SchedulerService {
     public void updateDB() {
         try {
             System.out.println("Aktualisiere Container-Datenbank...");
-            portainerService.aktualisiereDB();
+            dockerService.aktualisiereDB();
             System.out.println("Datenbank-Aktualisierung abgeschlossen.");
         } catch (Exception e) {
             System.err.println("Fehler beim Aktualisieren der Datenbank: " + e.getMessage());

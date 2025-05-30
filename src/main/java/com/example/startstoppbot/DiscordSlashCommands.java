@@ -1,7 +1,7 @@
 package com.example.startstoppbot;
 
 import com.example.startstoppbot.model.ContainerInfo;
-import com.example.startstoppbot.service.PortainerService;
+import com.example.startstoppbot.service.DockerService;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -17,7 +17,7 @@ import java.util.List;
 public class DiscordSlashCommands extends ListenerAdapter {
 
     @Autowired
-    private PortainerService portainerService;
+    private DockerService dockerService;
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
@@ -41,7 +41,7 @@ public class DiscordSlashCommands extends ListenerAdapter {
         event.deferReply().queue();
 
         try {
-            List<ContainerInfo> containers = portainerService.getDiscordEnabledContainers();
+            List<ContainerInfo> containers = dockerService.getDiscordEnabledContainers();
 
             if (containers.isEmpty()) {
                 event.getHook().editOriginal("Keine Container für Discord freigegeben.").queue();
@@ -89,7 +89,7 @@ public class DiscordSlashCommands extends ListenerAdapter {
         String containerName = containerOption.getAsString();
 
         try {
-            List<ContainerInfo> containers = portainerService.getDiscordEnabledContainers();
+            List<ContainerInfo> containers = dockerService.getDiscordEnabledContainers();
             ContainerInfo container = containers.stream()
                     .filter(c -> c.getName().equalsIgnoreCase(containerName))
                     .findFirst()
@@ -143,7 +143,7 @@ public class DiscordSlashCommands extends ListenerAdapter {
         String containerName = containerOption.getAsString();
 
         try {
-            portainerService.starteContainerFuerDiscord(containerName);
+            dockerService.starteContainerFuerDiscord(containerName);
 
             EmbedBuilder embedBuilder = new EmbedBuilder()
                     .setTitle("✅ Server gestartet")
@@ -176,7 +176,7 @@ public class DiscordSlashCommands extends ListenerAdapter {
         String containerName = containerOption.getAsString();
 
         try {
-            portainerService.stoppeContainerFuerDiscord(containerName);
+            dockerService.stoppeContainerFuerDiscord(containerName);
 
             EmbedBuilder embedBuilder = new EmbedBuilder()
                     .setTitle("🛑 Server gestoppt")
