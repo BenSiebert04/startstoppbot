@@ -121,6 +121,23 @@ public class DockerService {
                 e.printStackTrace();
             }
         }
+
+        deleteOldContainers(containers);
+    }
+
+    private void deleteOldContainers(List<DockerContainer> containers) {
+        Set<String> currentContainerNames = containers.stream()
+                .flatMap(c -> c.getNames().stream())
+                .map(name -> name.startsWith("/") ? name.substring(1) : name)
+                .collect(Collectors.toSet());
+
+        List<ContainerInfo> allContainers = containerInfoRepository.findAll();
+        for (ContainerInfo container : allContainers) {
+            if (!currentContainerNames.contains(container.getName())) {
+                System.out.println("Lösche alten Container: " + container.getName());
+                containerInfoRepository.delete(container);
+            }
+        }
     }
 
     public void starteContainer(String containerName) {
