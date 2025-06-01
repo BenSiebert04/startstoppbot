@@ -19,6 +19,11 @@ public interface ContainerInfoRepository extends JpaRepository<ContainerInfo, St
     // Container nach Discord-Status suchen
     List<ContainerInfo> findByDiscordEnabled(Boolean discordEnabled);
 
+    // Löschen eines Containers nach Name (ID)
+    @Modifying
+    @Query("DELETE FROM ContainerInfo c WHERE c.name = :name")
+    int deleteByName(@Param("name") String name);
+
     // Discord-Status für einen Container ändern (nach Name - ist jetzt die ID)
     @Modifying
     @Query("UPDATE ContainerInfo c SET c.discordEnabled = :enabled WHERE c.name = :name")

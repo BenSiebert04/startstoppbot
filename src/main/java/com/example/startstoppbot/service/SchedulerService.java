@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class SchedulerService {
@@ -89,15 +91,86 @@ public class SchedulerService {
 
     /**
      * Aktualisiert alle 4 Minuten die Datenbank mit aktuellen Container-Informationen
+     * und entfernt nicht mehr existierende Container
      */
     @Scheduled(fixedRate = 240000) // 4 Minuten in Millisekunden
     public void updateDB() {
         try {
             System.out.println("Aktualisiere Container-Datenbank...");
+
+            // Hole alle Container aus der Datenbank vor der Aktualisierung
+            List<ContainerInfo> dbContainersBefore = containerInfoRepository.findAll();
+            Set<String> dbContainerNamesBefore = dbContainersBefore.stream()
+                    .map(ContainerInfo::getName)
+                    .collect(Collectors.toSet());
+
+            // Aktualisiere die Datenbank mit aktuellen Docker-Containern
             dockerService.aktualisiereDB();
+
+            // Hole alle Container aus der Datenbank nach der Aktualisierung
+            List<ContainerInfo> dbContainersAfter = containerInfoRepository.findAll();
+            Set<String> dbContainerNamesAfter = dbContainersAfter.stream()
+                    .map(ContainerInfo::getName)
+                    .collect(Collectors.toSet());
+
+            // Finde Container, die in der DB waren, aber nicht mehr existieren
+            Set<String> removedContainers = dbContainerNamesBefore.stream()
+                    .filter(name -> !dbContainerNamesAfter.contains(name))
+                    .collect(Collectors.toSet());
+
+            // Entferne nicht mehr existierende Container aus der Datenbank
+            if (!removedContainers.isEmpty()) {
+                System.out.println("Entferne nicht mehr existierende Container: " + removedContainers);
+                for (String containerName : removedContainers) {
+                    try {
+                        containerInfoRepository.deleteByName(containerName);
+                        System.out.println("Container '" + containerName + "' aus Datenbank entfernt");
+                    } catch (Exception e) {
+                        System.err.println("Fehler beim Entfernen von Container '" + containerName + "': " + e.getMessage());
+                    }
+                }
+            }
+
             System.out.println("Datenbank-Aktualisierung abgeschlossen.");
+
         } catch (Exception e) {
             System.err.println("Fehler beim Aktualisieren der Datenbank: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Manuelle Methode zum Bereinigen nicht existierender Container
+     */
+    public void cleanupNonExistentContainers() {
+        try {
+            System.out.println("Starte manuelle Bereinigung nicht existierender Container...");
+
+            List<ContainerInfo> dbContainers = containerInfoRepository.findAll();
+
+            // Hole aktuelle Docker-Container-Namen
+            Set<String> existingDockerContainers = dockerService.getAllContainerNames();
+
+            int removedCount = 0;
+            for (ContainerInfo container : dbContainers) {
+                if (!existingDockerContainers.contains(container.getName())) {
+                    try {
+                        containerInfoRepository.deleteByName(container.getName());
+                        System.out.println("Nicht existierender Container entfernt: " + container.getName());
+                        removedCount++;
+                    } catch (Exception e) {
+                        System.err.println("Fehler beim Entfernen von Container '" + container.getName() + "': " + e.getMessage());
+                    }
+                }
+            }
+
+            if (removedCount > 0) {
+                System.out.println("Bereinigung abgeschlossen. " + removedCount + " Container entfernt.");
+            } else {
+                System.out.println("Keine nicht existierenden Container gefunden.");
+            }
+
+        } catch (Exception e) {
+            System.err.println("Fehler beim Bereinigen nicht existierender Container: " + e.getMessage());
         }
     }
 

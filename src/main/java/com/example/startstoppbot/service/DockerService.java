@@ -65,7 +65,7 @@ public class DockerService {
             System.err.println("HTTP Fehler beim Abrufen der Container:");
             System.err.println("Status: " + e.getStatusCode());
             System.err.println("Response Body: " + e.getResponseBodyAsString());
-            
+
         } catch (Exception e) {
             System.err.println("Allgemeiner Fehler beim Aktualisieren der DB: " + e.getMessage());
             e.printStackTrace();
@@ -82,7 +82,7 @@ public class DockerService {
                 System.err.println("Container ohne Namen übersprungen");
                 continue;
             }
-            
+
             try {
                 // Container-Namen bereinigen (entfernt führenden '/')
                 List<String> cleanedNames = container.getNames().stream()
@@ -142,7 +142,7 @@ public class DockerService {
         }
 
         ContainerInfo container = containerOpt.get();
-        String url = String.format("%s/containers/%s/%s", 
+        String url = String.format("%s/containers/%s/%s",
                 getBaseUrl(), container.getContainerId(), action);
 
         System.out.println("Container-Aktion: " + action + " für " + containerName + " - URL: " + url);
@@ -167,7 +167,7 @@ public class DockerService {
             System.err.println("HTTP Fehler bei Container-Aktion:");
             System.err.println("Status: " + e.getStatusCode());
             System.err.println("Response: " + e.getResponseBodyAsString());
-            
+
             // Spezifische Fehlermeldungen
             if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
                 throw new RuntimeException("Container nicht gefunden oder bereits gelöscht");
@@ -190,7 +190,7 @@ public class DockerService {
         }
 
         ContainerInfo container = containerOpt.get();
-        String url = String.format("%s/containers/%s/json", 
+        String url = String.format("%s/containers/%s/json",
                 getBaseUrl(), container.getContainerId());
 
         try {
@@ -204,7 +204,7 @@ public class DockerService {
             if (response.getBody() != null && response.getBody().getState() != null) {
                 return response.getBody().getState().getStatus();
             }
-            
+
             return "unknown";
 
         } catch (Exception e) {
@@ -252,6 +252,51 @@ public class DockerService {
 
         } catch (Exception e) {
             return "Verbindungsfehler: " + e.getMessage();
+        }
+    }
+
+    public Set<String> getAllContainerNames() {
+        System.out.println("Hole alle Container-Namen von Docker...");
+
+        String containersUrl = getBaseUrl() + "/containers/json?all=true";
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<DockerContainer[]> response = restTemplate.exchange(
+                    containersUrl, HttpMethod.GET, entity, DockerContainer[].class);
+
+            if (response.getBody() != null) {
+                Set<String> containerNames = new HashSet<>();
+
+                for (DockerContainer container : response.getBody()) {
+                    if (container.getNames() != null && !container.getNames().isEmpty()) {
+                        // Container-Namen bereinigen (entfernt führenden '/')
+                        List<String> cleanedNames = container.getNames().stream()
+                                .map(name -> name.startsWith("/") ? name.substring(1) : name)
+                                .collect(Collectors.toList());
+
+                        containerNames.add(cleanedNames.get(0));
+                    }
+                }
+
+                System.out.println("Gefundene Container-Namen: " + containerNames.size());
+                return containerNames;
+            }
+
+            return new HashSet<>();
+
+        } catch (HttpClientErrorException e) {
+            System.err.println("HTTP Fehler beim Abrufen aller Container-Namen:");
+            System.err.println("Status: " + e.getStatusCode());
+            System.err.println("Response Body: " + e.getResponseBodyAsString());
+            return new HashSet<>();
+
+        } catch (Exception e) {
+            System.err.println("Fehler beim Abrufen aller Container-Namen: " + e.getMessage());
+            return new HashSet<>();
         }
     }
 
