@@ -16,8 +16,6 @@ public interface ContainerInfoRepository extends JpaRepository<ContainerInfo, St
     // Alle Container die für Discord freigegeben sind
     List<ContainerInfo> findByDiscordEnabledTrue();
 
-    // Container nach Discord-Status suchen
-    List<ContainerInfo> findByDiscordEnabled(Boolean discordEnabled);
 
     // Löschen eines Containers nach Name (ID)
     @Modifying

@@ -138,41 +138,7 @@ public class SchedulerService {
         }
     }
 
-    /**
-     * Manuelle Methode zum Bereinigen nicht existierender Container
-     */
-    public void cleanupNonExistentContainers() {
-        try {
-            System.out.println("Starte manuelle Bereinigung nicht existierender Container...");
 
-            List<ContainerInfo> dbContainers = containerInfoRepository.findAll();
-
-            // Hole aktuelle Docker-Container-Namen
-            Set<String> existingDockerContainers = dockerService.getAllContainerNames();
-
-            int removedCount = 0;
-            for (ContainerInfo container : dbContainers) {
-                if (!existingDockerContainers.contains(container.getName())) {
-                    try {
-                        containerInfoRepository.deleteByName(container.getName());
-                        System.out.println("Nicht existierender Container entfernt: " + container.getName());
-                        removedCount++;
-                    } catch (Exception e) {
-                        System.err.println("Fehler beim Entfernen von Container '" + container.getName() + "': " + e.getMessage());
-                    }
-                }
-            }
-
-            if (removedCount > 0) {
-                System.out.println("Bereinigung abgeschlossen. " + removedCount + " Container entfernt.");
-            } else {
-                System.out.println("Keine nicht existierenden Container gefunden.");
-            }
-
-        } catch (Exception e) {
-            System.err.println("Fehler beim Bereinigen nicht existierender Container: " + e.getMessage());
-        }
-    }
 
     /**
      * Bereinigt alte Spieler-Aktualisierungsdaten alle 24 Stunden

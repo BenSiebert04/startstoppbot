@@ -199,36 +199,7 @@ public class DockerService {
         }
     }
 
-    // Container-Status direkt abfragen
-    public String getContainerStatus(String containerName) {
-        Optional<ContainerInfo> containerOpt = containerInfoRepository.findById(containerName);
-        if (containerOpt.isEmpty()) {
-            throw new RuntimeException("Container nicht gefunden: " + containerName);
-        }
 
-        ContainerInfo container = containerOpt.get();
-        String url = String.format("%s/containers/%s/json",
-                getBaseUrl(), container.getContainerId());
-
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<DockerContainerInspect> response = restTemplate.exchange(
-                    url, HttpMethod.GET, entity, DockerContainerInspect.class);
-
-            if (response.getBody() != null && response.getBody().getState() != null) {
-                return response.getBody().getState().getStatus();
-            }
-
-            return "unknown";
-
-        } catch (Exception e) {
-            System.err.println("Fehler beim Abrufen des Container-Status: " + e.getMessage());
-            return "error";
-        }
-    }
 
     // Neue Methode: Nur Discord-fähige Container für Discord-Bot
     public List<ContainerInfo> getDiscordEnabledContainers() {
@@ -272,50 +243,6 @@ public class DockerService {
         }
     }
 
-    public Set<String> getAllContainerNames() {
-        System.out.println("Hole alle Container-Namen von Docker...");
-
-        String containersUrl = getBaseUrl() + "/containers/json?all=true";
-
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<DockerContainer[]> response = restTemplate.exchange(
-                    containersUrl, HttpMethod.GET, entity, DockerContainer[].class);
-
-            if (response.getBody() != null) {
-                Set<String> containerNames = new HashSet<>();
-
-                for (DockerContainer container : response.getBody()) {
-                    if (container.getNames() != null && !container.getNames().isEmpty()) {
-                        // Container-Namen bereinigen (entfernt führenden '/')
-                        List<String> cleanedNames = container.getNames().stream()
-                                .map(name -> name.startsWith("/") ? name.substring(1) : name)
-                                .collect(Collectors.toList());
-
-                        containerNames.add(cleanedNames.get(0));
-                    }
-                }
-
-                System.out.println("Gefundene Container-Namen: " + containerNames.size());
-                return containerNames;
-            }
-
-            return new HashSet<>();
-
-        } catch (HttpClientErrorException e) {
-            System.err.println("HTTP Fehler beim Abrufen aller Container-Namen:");
-            System.err.println("Status: " + e.getStatusCode());
-            System.err.println("Response Body: " + e.getResponseBodyAsString());
-            return new HashSet<>();
-
-        } catch (Exception e) {
-            System.err.println("Fehler beim Abrufen aller Container-Namen: " + e.getMessage());
-            return new HashSet<>();
-        }
-    }
 
     // DTOs für die Docker Engine API-Antwort
     @Getter
