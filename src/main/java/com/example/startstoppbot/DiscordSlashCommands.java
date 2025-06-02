@@ -2,6 +2,7 @@ package com.example.startstoppbot;
 
 import com.example.startstoppbot.model.ContainerInfo;
 import com.example.startstoppbot.service.DockerService;
+import com.example.startstoppbot.service.PublicIpService;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -19,6 +20,9 @@ public class DiscordSlashCommands extends ListenerAdapter {
     @Autowired
     private DockerService dockerService;
 
+    @Autowired
+    private PublicIpService publicIpService;
+
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
         switch (event.getName()) {
@@ -34,6 +38,34 @@ public class DiscordSlashCommands extends ListenerAdapter {
             case "stopserver":
                 handleStopServer(event);
                 break;
+            case "getpublicip":
+                handleGetPublicIp(event);
+                break;
+        }
+    }
+
+    private void handleGetPublicIp(SlashCommandInteractionEvent event) {
+        event.deferReply().queue();
+
+        try {
+            String publicIp = publicIpService.getPublicIp();
+
+            EmbedBuilder embedBuilder = new EmbedBuilder()
+                    .setTitle("🌐 Öffentliche IP-Adresse")
+                    .setColor(Color.BLUE)
+                    .addField("📍 IP-Adresse", publicIp, false)
+                    .setDescription("Ihre aktuelle öffentliche IP-Adresse");
+
+            event.getHook().editOriginalEmbeds(embedBuilder.build()).queue();
+
+        } catch (Exception e) {
+            EmbedBuilder embedBuilder = new EmbedBuilder()
+                    .setTitle("❌ Fehler beim Abrufen der IP-Adresse")
+                    .setColor(Color.RED)
+                    .setDescription("Die öffentliche IP-Adresse konnte nicht abgerufen werden.")
+                    .addField("Fehlergrund", e.getMessage(), false);
+
+            event.getHook().editOriginalEmbeds(embedBuilder.build()).queue();
         }
     }
 

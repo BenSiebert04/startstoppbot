@@ -22,11 +22,11 @@ import java.util.Collections;
 @SpringBootApplication
 @EnableScheduling
 @OpenAPIDefinition(
-    info = @Info(
-        title = "StartStopp Bot API",
-        version = "1.0",
-        description = "API für Discord Bot zur Container-Verwaltung"
-    )
+        info = @Info(
+                title = "StartStopp Bot API",
+                version = "1.0",
+                description = "API für Discord Bot zur Container-Verwaltung"
+        )
 )
 public class StartStoppBotApplication implements CommandLineRunner {
 
@@ -55,7 +55,8 @@ public class StartStoppBotApplication implements CommandLineRunner {
                 Commands.slash("startserver", "Startet einen Server")
                         .addOption(OptionType.STRING, "name", "Name der Anwendung", true),
                 Commands.slash("stopserver", "Stoppt einen Server (nur Admin)")
-                        .addOption(OptionType.STRING, "name", "Name der Anwendung", true)
+                        .addOption(OptionType.STRING, "name", "Name der Anwendung", true),
+                Commands.slash("getpublicip", "Zeigt die öffentliche IP-Adresse des Servers an")
         ).queue();
 
         System.out.println("Discord Bot gestartet!");
