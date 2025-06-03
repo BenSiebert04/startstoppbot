@@ -47,6 +47,7 @@ public class StartStoppBotApplication implements CommandLineRunner {
                 .addEventListeners(slashCommands)
                 .build();
 
+        jda.awaitReady(); // Warten bis JDA bereit ist
         // Slash Commands registrieren
         jda.updateCommands().addCommands(
                 Commands.slash("getserverstatuslist", "Zeigt alle Server mit Status und Spieleranzahl"),
@@ -57,7 +58,8 @@ public class StartStoppBotApplication implements CommandLineRunner {
                 Commands.slash("stopserver", "Stoppt einen Server (nur Admin)")
                         .addOption(OptionType.STRING, "name", "Name der Anwendung", true),
                 Commands.slash("getpublicip", "Zeigt die öffentliche IP-Adresse des Servers an")
-        ).queue();
+        ).queue(success -> System.out.println("Commands registriert!"),
+                error -> System.err.println("Fehler: " + error));
 
         System.out.println("Discord Bot gestartet!");
     }
